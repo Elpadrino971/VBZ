@@ -19,16 +19,20 @@ Plateforme moderne de concerts en streaming avec billetterie intégrée, systèm
 ### Utilisateurs
 - ✅ Authentification (email/password)
 - ✅ Navigation et découverte de concerts
-- 🔄 Achat de tickets (physique ou e-ticket)
-- 🔄 Visualisation des concerts live
-- 🔄 Historique des achats avec QR codes
+- ✅ Achat de tickets (physique ou e-ticket) via Stripe
+- ✅ Visualisation des concerts live (YouTube embed)
+- ✅ Historique des achats avec QR codes
+- ✅ Page de visualisation des tickets
+- ✅ Accès sécurisé au player live
 
 ### Artistes
 - ✅ Compte artiste avec essai gratuit 90 jours
-- 🔄 Dashboard avec statistiques
-- 🔄 Création et gestion de concerts
-- 🔄 Système de niveaux (Starter/Intermédiaire/Premium)
-- 🔄 Paiements J+21 via Stripe Connect
+- ✅ Dashboard avec statistiques complètes
+- ✅ Création et gestion de concerts
+- ✅ Système de niveaux (Starter/Intermédiaire/Premium)
+- ✅ Suivi de progression vers niveau supérieur
+- ✅ Revenus J+21 trackés automatiquement
+- ✅ Double tarification avec validation (50-70%)
 
 ### Système de Tarification
 - **E-tickets:** 50-70% moins cher que les tickets physiques
@@ -106,23 +110,40 @@ Ouvrir [http://localhost:3000](http://localhost:3000)
 
 \`\`\`
 VBZ/
-├── app/                      # Pages Next.js (App Router)
-│   ├── api/                  # API Routes
-│   │   └── auth/            # Authentification
-│   ├── auth/                # Pages auth (signin/signup)
-│   ├── concerts/            # Pages concerts
-│   ├── dashboard/           # Dashboard artiste
-│   ├── account/             # Compte utilisateur
-│   └── page.tsx             # Page d'accueil
-├── components/              # Composants React
-│   └── ui/                  # Composants UI (Shadcn)
-├── lib/                     # Utilitaires
-│   ├── auth.ts             # Config NextAuth
-│   ├── prisma.ts           # Client Prisma
-│   └── utils.ts            # Helpers
-├── prisma/                  # Schéma Prisma
-│   └── schema.prisma
-└── types/                   # Types TypeScript
+├── app/                          # Pages Next.js (App Router)
+│   ├── api/                      # API Routes
+│   │   ├── auth/                # Authentification (signup, NextAuth)
+│   │   ├── concerts/            # CRUD concerts
+│   │   ├── checkout/            # Stripe Checkout (eticket/physical)
+│   │   └── webhooks/            # Stripe webhooks
+│   ├── auth/                    # Pages auth (signin/signup)
+│   ├── concerts/                # Pages concerts publiques
+│   │   ├── [slug]/             # Détail concert + achat
+│   │   └── page.tsx            # Liste concerts
+│   ├── dashboard/               # Dashboard artiste
+│   │   ├── concerts/new/       # Création concert
+│   │   └── page.tsx            # Stats + overview
+│   ├── account/                 # Compte utilisateur
+│   │   ├── tickets/            # Liste tickets + QR codes
+│   │   └── page.tsx            # Overview compte
+│   ├── watch/                   # Player YouTube Live
+│   │   └── [slug]/             # Lecture concert (protégé)
+│   ├── checkout/success/        # Confirmation achat
+│   └── page.tsx                 # Page d'accueil
+├── components/                  # Composants React
+│   ├── ui/                      # Composants UI (Shadcn)
+│   ├── navbar.tsx               # Navigation principale
+│   └── concert-card.tsx         # Card concert réutilisable
+├── lib/                         # Utilitaires
+│   ├── auth.ts                  # Config NextAuth
+│   ├── prisma.ts                # Client Prisma
+│   ├── stripe.ts                # Config Stripe
+│   ├── artist-levels.ts         # Logique niveaux artistes
+│   └── utils.ts                 # Helpers
+├── prisma/                      # Schéma Prisma
+│   └── schema.prisma           # Models DB complets
+└── types/                       # Types TypeScript
+    └── next-auth.d.ts          # Extend NextAuth types
 \`\`\`
 
 ## 🔐 Sécurité
@@ -137,16 +158,21 @@ VBZ/
 
 - [x] Setup projet & authentification
 - [x] Page d'accueil & listing concerts
-- [ ] Page détail concert
-- [ ] Dashboard artiste
-- [ ] Création de concerts
-- [ ] Intégration Stripe Connect
-- [ ] Système de tickets & QR codes
-- [ ] Player YouTube Live
-- [ ] Logique niveaux artistes
-- [ ] Système J+21 paiements
-- [ ] Pages compte utilisateur
-- [ ] Onboarding artiste complet
+- [x] Page détail concert avec double tarification
+- [x] Dashboard artiste complet
+- [x] Création de concerts avec validation
+- [x] Intégration Stripe Checkout
+- [x] Système de tickets & QR codes
+- [x] Player YouTube Live avec contrôle d'accès
+- [x] Logique niveaux artistes automatique
+- [x] Système J+21 paiements via webhook
+- [x] Pages compte utilisateur avec tickets
+- [ ] Intégration Stripe Connect (onboarding artiste)
+- [ ] Gestion des payouts artistes
+- [ ] Système d'upload d'images
+- [ ] Page de gestion des concerts (artiste)
+- [ ] Notifications email (tickets, confirmations)
+- [ ] Analytics avancés artistes
 
 ## 📝 Licence
 
