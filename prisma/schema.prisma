@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ARTIST
+  ADMIN
+}
+
+enum ArtistLevel {
+  STARTER
+  INTERMEDIATE
+  PREMIUM
+}
+
+enum ConcertStatus {
+  DRAFT
+  PUBLISHED
+  LIVE
+  ENDED
+}
+
+enum TicketType {
+  PHYSICAL
+  ETICKET
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  role          UserRole  @default(USER)
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  artist  Artist?
+  tickets Ticket[]
+
+  @@index([email])
+}
+
+model Artist {
+  id               String       @id @default(cuid())
+  userId           String       @unique
+  artistName       String
+  bio              String?
+  photoUrl         String?
+  level            ArtistLevel  @default(STARTER)
+  trialEndDate     DateTime
+  ticketsSoldTotal Int          @default(0)
+  revenueTotal     Decimal      @default(0) @db.Decimal(10, 2)
+  communityLeads   Int          @default(0)
+  stripeAccountId  String?      @unique
+  subscriptionId   String?      @unique
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  concerts Concert[]
+  payouts  Payout[]
+
+  @@index([userId])
+  @@index([level])
+}
+
+model Concert {
+  id            String        @id @default(cuid())
+  artistId      String
+  title         String
+  slug          String        @unique
+  coverUrl      String?
+  description   String?
+  pricePhysical Decimal       @db.Decimal(10, 2)
+  priceEticket  Decimal       @db.Decimal(10, 2)
+  date          DateTime
+  duration      Int?          // en minutes
+  youtubeUrl    String?       // URL du live YouTube
+  status        ConcertStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relations
+  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  tickets Ticket[]
+
+  @@index([artistId])
+  @@index([status])
+  @@index([date])
+  @@index([slug])
+}
+
+model Ticket {
+  id           String     @id @default(cuid())
+  concertId    String
+  userId       String
+  type         TicketType
+  qrCode       String     @unique
+  pricePaid    Decimal    @db.Decimal(10, 2)
+  purchaseDate DateTime   @default(now())
+  isUsed       Boolean    @default(false)
+  usedAt       DateTime?
+  createdAt    DateTime   @default(now())
+
+  // Relations
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([concertId])
+  @@index([userId])
+  @@index([qrCode])
+}
+
+model Payout {
+  id        String        @id @default(cuid())
+  artistId  String
+  amount    Decimal       @db.Decimal(10, 2)
+  status    PayoutStatus  @default(PENDING)
+  releaseDate DateTime    // Date de libération (J+21)
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@index([artistId])
+  @@index([status])
+  @@index([releaseDate])
+}
