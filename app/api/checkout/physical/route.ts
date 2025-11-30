@@ -69,11 +69,26 @@ export async function POST(req: Request) {
       },
     })
 
+    // Retourner l'URL pour les requêtes fetch (client-side)
+    // ou rediriger pour les formulaires HTML (server-side)
+    const acceptHeader = req.headers.get("accept") || ""
+    const contentType = req.headers.get("content-type") || ""
+    
+    // Si c'est une requête fetch avec Accept: application/json, retourner JSON
+    if (acceptHeader.includes("application/json")) {
+      return NextResponse.json({ url: checkoutSession.url! })
+    }
+    
+    // Sinon, rediriger (pour les formulaires HTML)
     return NextResponse.redirect(checkoutSession.url!)
   } catch (error) {
-    console.error("Checkout error:", error)
+    console.error("❌ Checkout error:", error)
+    console.error("❌ Error details:", error instanceof Error ? error.message : error)
     return NextResponse.json(
-      { error: "Une erreur est survenue" },
+      { 
+        error: error instanceof Error ? error.message : "Une erreur est survenue",
+        details: process.env.NODE_ENV === "development" ? String(error) : undefined
+      },
       { status: 500 }
     )
   }

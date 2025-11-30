@@ -2,6 +2,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Navbar } from "@/components/navbar"
+import { CreditsWallet } from "@/components/credits-wallet"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,7 @@ export default async function TicketsPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 pb-8 max-w-6xl">
         <div className="mb-6">
           <Link href="/account">
             <Button variant="ghost" size="sm">
@@ -59,6 +60,8 @@ export default async function TicketsPage() {
           </p>
         </div>
 
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
         {tickets.length > 0 ? (
           <div className="space-y-6">
             {tickets.map((ticket) => {
@@ -206,6 +209,13 @@ export default async function TicketsPage() {
             </CardContent>
           </Card>
         )}
+          </div>
+
+          {/* Sidebar - Portefeuille */}
+          <div className="lg:col-span-1">
+            <CreditsWallet />
+          </div>
+        </div>
       </div>
     </div>
   )

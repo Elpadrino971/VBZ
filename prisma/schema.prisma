@@ -53,57 +53,82 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  artist  Artist?
-  tickets Ticket[]
+  artist   Artist?
+  tickets  Ticket[]
+  likes    ConcertLike[]
+  comments Comment[]
+  tips     Tip[]
+  credits  UserCredit[]
 
   @@index([email])
 }
 
 model Artist {
-  id               String       @id @default(cuid())
-  userId           String       @unique
+  id               String      @id @default(cuid())
+  userId           String      @unique
   artistName       String
   bio              String?
   photoUrl         String?
-  level            ArtistLevel  @default(STARTER)
+  level            ArtistLevel @default(STARTER)
   trialEndDate     DateTime
-  ticketsSoldTotal Int          @default(0)
-  revenueTotal     Decimal      @default(0) @db.Decimal(10, 2)
-  communityLeads   Int          @default(0)
-  stripeAccountId  String?      @unique
-  subscriptionId   String?      @unique
-  isActive         Boolean      @default(true)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  ticketsSoldTotal Int         @default(0)
+  revenueTotal     Decimal     @default(0) @db.Decimal(10, 2)
+  communityLeads   Int         @default(0)
+  stripeAccountId  String?     @unique
+  subscriptionId   String?     @unique
+  isActive         Boolean     @default(true)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   // Relations
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   concerts Concert[]
   payouts  Payout[]
+  tips     Tip[]
 
   @@index([userId])
   @@index([level])
 }
 
 model Concert {
-  id            String        @id @default(cuid())
-  artistId      String
-  title         String
-  slug          String        @unique
-  coverUrl      String?
-  description   String?
-  pricePhysical Decimal       @db.Decimal(10, 2)
-  priceEticket  Decimal       @db.Decimal(10, 2)
-  date          DateTime
-  duration      Int?          // en minutes
-  youtubeUrl    String?       // URL du live YouTube
-  status        ConcertStatus @default(DRAFT)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id                     String        @id @default(cuid())
+  artistId               String
+  title                  String
+  slug                   String        @unique
+  coverUrl               String?
+  description            String?
+  pricePhysical          Decimal       @db.Decimal(10, 2)
+  priceEticket           Decimal       @db.Decimal(10, 2)
+  date                   DateTime
+  duration               Int? // en minutes
+  muxLiveStreamId        String? // ID du stream Mux Live
+  muxPlaybackId          String? // ID de lecture Mux (pour le player)
+  muxStreamKey           String? // Clé de stream pour OBS/encoder
+  // Pub propre (non programmatique)
+  promoImageUrl          String? // Image pour la pub
+  promoVideoUrl          String? // Vidéo pour la pub
+  promoTitle             String? // Titre de la pub
+  promoDescription       String? // Description de la pub
+  promoCtaText           String? // Texte du CTA
+  promoCtaUrl            String? // URL du CTA
+  // Contenu bonus de l'artiste
+  artistContentVideoUrl  String? // Vidéo bonus de l'artiste
+  // Extension de streaming
+  streamingEndDate       DateTime? // Date de fin du streaming (7 jours après le concert par défaut)
+  streamingExtendedUntil DateTime? // Date jusqu'à laquelle le streaming est prolongé (si extension payée)
+  extensionPricePerDay   Decimal?      @db.Decimal(10, 2) // Prix par jour d'extension (ex: 0.99€/jour)
+  status                 ConcertStatus @default(DRAFT)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   // Relations
-  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  tickets Ticket[]
+  artist   Artist        @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  tickets  Ticket[]
+  likes    ConcertLike[]
+  comments Comment[]
+  payouts  Payout[]
+  tips     Tip[]
+  content  ConcertContent?
 
   @@index([artistId])
   @@index([status])
@@ -126,6 +151,7 @@ model Ticket {
   // Relations
   concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payout  Payout? // Un ticket peut générer un payout
 
   @@index([concertId])
   @@index([userId])
@@ -133,19 +159,122 @@ model Ticket {
 }
 
 model Payout {
-  id        String        @id @default(cuid())
-  artistId  String
-  amount    Decimal       @db.Decimal(10, 2)
-  status    PayoutStatus  @default(PENDING)
-  releaseDate DateTime    // Date de libération (J+21)
-  paidAt    DateTime?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id               String       @id @default(cuid())
+  artistId         String
+  concertId        String? // Lier au concert pour calculer la date de fin (optionnel pour compatibilité)
+  ticketId         String?      @unique // Lier au ticket pour traçabilité (unique car relation 1-1)
+  tipId            String?      @unique // Lier au tip pour traçabilité (unique car relation 1-1)
+  amount           Decimal      @db.Decimal(10, 2)
+  status           PayoutStatus @default(PENDING)
+  releaseDate      DateTime // Date de libération calculée (concert date + délai)
+  isFirstPayout    Boolean      @default(false) // Premier paiement = 14 jours (Stripe)
+  daysUntilRelease Int          @default(7) // Nombre de jours jusqu'au déblocage (pour affichage)
+  stripeTransferId String? // ID du transfer Stripe vers le compte Connect
+  paidAt           DateTime?
+  completedAt      DateTime? // Date de complétion du transfert
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Relations
-  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  artist  Artist   @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  concert Concert? @relation(fields: [concertId], references: [id], onDelete: SetNull)
+  ticket  Ticket?  @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  tip     Tip?     @relation(fields: [tipId], references: [id], onDelete: SetNull)
 
   @@index([artistId])
   @@index([status])
   @@index([releaseDate])
+}
+
+model ConcertLike {
+  id        String   @id @default(cuid())
+  concertId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([concertId, userId])
+  @@index([concertId])
+  @@index([userId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  concertId String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([concertId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Tip {
+  id                    String    @id @default(cuid())
+  concertId             String
+  artistId              String
+  userId                String
+  amount                Decimal   @db.Decimal(10, 2)
+  stripePaymentIntentId String? // ID du paiement Stripe
+  status                TipStatus @default(PENDING)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // Relations
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+  artist  Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payout  Payout? // Un tip peut générer un payout
+
+  @@index([concertId])
+  @@index([artistId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum TipStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model UserCredit {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Decimal  @db.Decimal(10, 2) // Montant en crédits (€)
+  source      String   // "PURCHASE", "REFUND", "BONUS", etc.
+  description String?  // Description de la transaction
+  expiresAt   DateTime? // Date d'expiration (optionnel)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ConcertContent {
+  id        String   @id @default(cuid())
+  concertId String   @unique
+  content   String   // Contenu généré par ChatGPT (fiche qualitative)
+  model     String   @default("gpt-4") // Modèle utilisé
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  concert Concert @relation(fields: [concertId], references: [id], onDelete: Cascade)
+
+  @@index([concertId])
 }

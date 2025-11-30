@@ -1,10 +1,13 @@
+"use client"
+
 import Link from "next/link"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, Euro, User } from "lucide-react"
+import { Calendar, Clock, Euro, User, Music } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
+import { useState } from "react"
 
 interface ConcertCardProps {
   concert: {
@@ -17,35 +20,52 @@ interface ConcertCardProps {
     priceEticket: number
     pricePhysical: number
     status: string
+    muxPlaybackId?: string | null
     artist: {
       artistName: string
+      photoUrl?: string | null
     }
   }
 }
 
 export function ConcertCard({ concert }: ConcertCardProps) {
+  const [imageError, setImageError] = useState(false)
   const isLive = concert.status === "LIVE"
   const isPast = concert.status === "ENDED"
+  const isStreaming = !!concert.muxPlaybackId && !isLive && !isPast
+  
+  // Image de fallback si l'image ne charge pas
+  const fallbackImage = "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1200&h=800&fit=crop"
 
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="relative aspect-video bg-gradient-to-br from-purple-400 to-blue-500">
-        {concert.coverUrl ? (
+    <Card className="group overflow-hidden bg-card border-border hover:border-primary/50 transition-all duration-300 hover:shadow-glow">
+      <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-purple-500 via-pink-500 to-red-500">
+        {concert.coverUrl && !imageError ? (
           <img
             src={concert.coverUrl}
             alt={concert.title}
-            className="object-cover w-full h-full"
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            onError={() => setImageError(true)}
           />
         ) : (
-          <div className="flex items-center justify-center h-full">
-            <span className="text-white text-4xl font-bold opacity-50">
-              {concert.title.charAt(0)}
-            </span>
+          <div className="w-full h-full bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 flex items-center justify-center relative">
+            <div className="absolute inset-0 bg-black/20"></div>
+            <img
+              src={fallbackImage}
+              alt={concert.title}
+              className="w-full h-full object-cover opacity-80"
+            />
+            <Music className="h-16 w-16 text-white/80 relative z-10 absolute" />
           </div>
         )}
         {isLive && (
-          <Badge className="absolute top-2 right-2 bg-red-500 animate-pulse">
-            🔴 EN DIRECT
+          <Badge className="absolute top-4 right-4 px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm font-semibold animate-pulse">
+            LIVE
+          </Badge>
+        )}
+        {isStreaming && (
+          <Badge className="absolute top-4 right-4 px-3 py-1 bg-green-600 text-white rounded-full text-sm font-semibold">
+            📺 Disponible
           </Badge>
         )}
         {isPast && (
@@ -56,10 +76,18 @@ export function ConcertCard({ concert }: ConcertCardProps) {
       </div>
 
       <CardHeader>
-        <h3 className="text-xl font-bold line-clamp-1">{concert.title}</h3>
-        <div className="flex items-center text-sm text-muted-foreground">
-          <User className="h-3 w-3 mr-1" />
-          {concert.artist.artistName}
+        <h3 className="font-display font-bold text-xl mb-2 group-hover:text-primary transition-colors line-clamp-1">{concert.title}</h3>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {concert.artist.photoUrl ? (
+            <img
+              src={concert.artist.photoUrl}
+              alt={concert.artist.artistName}
+              className="w-6 h-6 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <User className="h-4 w-4" />
+          )}
+          <span className="font-medium">{concert.artist.artistName}</span>
         </div>
       </CardHeader>
 
@@ -76,29 +104,17 @@ export function ConcertCard({ concert }: ConcertCardProps) {
             <span>{concert.duration} minutes</span>
           </div>
         )}
-        <div className="pt-2 space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">E-ticket (streaming)</span>
-            <span className="font-bold text-primary">
-              {concert.priceEticket.toFixed(2)} €
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Ticket physique</span>
-            <span className="font-semibold">
-              {concert.pricePhysical.toFixed(2)} €
-            </span>
-          </div>
+        <div className="flex items-center justify-between pt-2">
+          <span className="text-2xl font-display font-bold text-primary">
+            {concert.priceEticket.toFixed(2)} €
+          </span>
+          <Link href={`/concerts/${concert.slug}`} className="w-auto">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90" disabled={isPast}>
+              {isLive ? "Voir le concert" : isStreaming ? "Regarder" : isPast ? "Terminé" : "Réserver"}
+            </Button>
+          </Link>
         </div>
       </CardContent>
-
-      <CardFooter>
-        <Link href={`/concerts/${concert.slug}`} className="w-full">
-          <Button className="w-full" disabled={isPast}>
-            {isLive ? "Voir le concert" : "Réserver"}
-          </Button>
-        </Link>
-      </CardFooter>
     </Card>
   )
 }

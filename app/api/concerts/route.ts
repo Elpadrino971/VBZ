@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { createLiveStream } from "@/lib/mux"
+import { checkRateLimit, concertCreationRateLimit } from "@/lib/rate-limit"
 import { z } from "zod"
 
 const concertSchema = z.object({
@@ -10,7 +12,6 @@ const concertSchema = z.object({
   priceEticket: z.number().min(0, "Le prix doit être positif"),
   date: z.string().datetime(),
   duration: z.number().nullable(),
-  youtubeUrl: z.string().url().nullable().optional(),
   coverUrl: z.string().url().nullable().optional(),
 })
 
@@ -31,6 +32,23 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Profil artiste non trouvé" },
         { status: 404 }
+      )
+    }
+
+    // Vérifier que Stripe Connect est connecté (obligatoire pour créer un concert)
+    if (!artist.stripeAccountId) {
+      return NextResponse.json(
+        { error: "Vous devez connecter votre compte bancaire Stripe avant de créer un concert. Allez dans votre dashboard → Paiements." },
+        { status: 400 }
+      )
+    }
+
+    // Rate limiting
+    const rateLimitResult = await checkRateLimit(concertCreationRateLimit, `concert:${session.user.id}`)
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Trop de tentatives. Veuillez réessayer plus tard." },
+        { status: 429 }
       )
     }
 
@@ -65,11 +83,30 @@ export async function POST(req: Request) {
         priceEticket: data.priceEticket,
         date: new Date(data.date),
         duration: data.duration,
-        youtubeUrl: data.youtubeUrl || null,
         coverUrl: data.coverUrl || null,
         status: "PUBLISHED", // Publish immediately for V1
       },
     })
+
+    // Créer automatiquement le stream Mux pour ce concert
+    try {
+      const muxStream = await createLiveStream(concert.title)
+      const playbackId = muxStream.playback_ids[0]?.id
+
+      if (playbackId) {
+        await prisma.concert.update({
+          where: { id: concert.id },
+          data: {
+            muxLiveStreamId: muxStream.id,
+            muxStreamKey: muxStream.stream_key,
+            muxPlaybackId: playbackId,
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Erreur lors de la création du stream Mux:", error)
+      // On continue quand même, le stream pourra être créé plus tard depuis le dashboard
+    }
 
     return NextResponse.json(
       {

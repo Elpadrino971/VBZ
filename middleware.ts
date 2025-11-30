@@ -15,6 +15,11 @@ export default auth((req) => {
   // User routes
   const isUserRoute = pathname.startsWith("/account")
 
+  // Allow public routes
+  if (isPublicRoute) {
+    return NextResponse.next()
+  }
+
   // Protect artist routes
   if (isArtistRoute) {
     if (!isLoggedIn) {

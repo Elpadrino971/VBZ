@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation"
+import Image from "next/image"
 import { prisma } from "@/lib/prisma"
 import { Navbar } from "@/components/navbar"
+import { VybzzPlayer } from "@/components/VybzzPlayer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ConcertCard } from "@/components/concert-card"
+import { ConcertContent } from "@/components/concert-content"
 import { Calendar, Clock, MapPin, User, Ticket, Tv, Music } from "lucide-react"
+import { CheckoutButton } from "@/components/checkout-button"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import Link from "next/link"
@@ -57,46 +61,95 @@ export default async function ConcertDetailPage({
       100
   )
 
+  // Vérifier si l'utilisateur a un ticket pour ce concert
+  let hasTicket = false
+  if (session) {
+    const ticket = await prisma.ticket.findFirst({
+      where: {
+        concertId: concert.id,
+        userId: session.user.id,
+        type: "ETICKET",
+      },
+    })
+    hasTicket = !!ticket
+  }
+
   // Other concerts by the same artist (excluding current one)
-  const otherConcerts = concert.artist.concerts.filter((c) => c.id !== concert.id)
+  // Convertir les Decimal en nombres pour les Client Components
+  const otherConcerts = concert.artist.concerts
+    .filter((c) => c.id !== concert.id)
+    .map((c) => ({
+      ...c,
+      pricePhysical: Number(c.pricePhysical),
+      priceEticket: Number(c.priceEticket),
+    }))
+  
+  // Convertir aussi le concert principal pour éviter les erreurs
+  const concertWithNumbers = {
+    ...concert,
+    pricePhysical: Number(concert.pricePhysical),
+    priceEticket: Number(concert.priceEticket),
+  }
+  
+  // Afficher le player si l'utilisateur a un ticket ET qu'il y a un playbackId
+  const canWatch = hasTicket && !!concert.muxPlaybackId
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 pb-8">
         {/* Concert Header */}
         <div className="grid lg:grid-cols-3 gap-8 mb-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Cover Image */}
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-purple-400 to-blue-500">
-              {concert.coverUrl ? (
-                <img
-                  src={concert.coverUrl}
-                  alt={concert.title}
-                  className="object-cover w-full h-full"
+            {/* Video Player ou Cover Image */}
+            {canWatch ? (
+              <div className="relative">
+                <VybzzPlayer
+                  playbackId={concert.muxPlaybackId!}
+                  posterUrl={concert.coverUrl}
+                  autoplay={false}
+                  muted={false}
                 />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Music className="h-24 w-24 text-white opacity-50" />
-                </div>
-              )}
-              {isLive && (
-                <div className="absolute top-4 right-4">
-                  <Badge className="bg-red-500 animate-pulse text-white text-lg px-4 py-2">
-                    🔴 EN DIRECT
-                  </Badge>
-                </div>
-              )}
-              {isPast && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                  <span className="text-white text-2xl font-bold">
-                    Concert terminé
-                  </span>
-                </div>
-              )}
-            </div>
+                {isLive && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <Badge className="bg-red-500 animate-pulse text-white text-lg px-4 py-2">
+                      🔴 EN DIRECT
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-gradient-to-br from-purple-400 to-blue-500">
+                {concert.coverUrl ? (
+                  <Image
+                    src={concert.coverUrl}
+                    alt={concert.title}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <Music className="h-24 w-24 text-white opacity-50" />
+                  </div>
+                )}
+                {isLive && (
+                  <div className="absolute top-4 right-4">
+                    <Badge className="bg-red-500 animate-pulse text-white text-lg px-4 py-2">
+                      🔴 EN DIRECT
+                    </Badge>
+                  </div>
+                )}
+                {isPast && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold">
+                      Concert terminé
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Concert Info */}
             <div>
@@ -146,6 +199,18 @@ export default async function ConcertDetailPage({
                 )}
               </div>
 
+              {/* Bouton Regarder si l'utilisateur a un ticket */}
+              {hasTicket && concert.muxPlaybackId && (
+                <div className="mb-6">
+                  <Link href={`/watch/${concert.slug}`}>
+                    <Button size="lg" className="w-full sm:w-auto">
+                      <Tv className="mr-2 h-5 w-5" />
+                      {isLive ? "Regarder le live" : "Regarder le concert"}
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
               {/* Description */}
               {concert.description && (
                 <div className="mb-6">
@@ -188,7 +253,7 @@ export default async function ConcertDetailPage({
 
           {/* Sidebar - Ticket Purchase */}
           <div className="lg:col-span-1">
-            <div className="sticky top-4 space-y-4">
+            <div className="sticky top-4 space-y-6">
               {/* E-Ticket Card */}
               <Card className="border-primary border-2">
                 <CardHeader>
@@ -206,17 +271,17 @@ export default async function ConcertDetailPage({
                 <CardContent className="space-y-4">
                   <div>
                     <p className="text-3xl font-bold text-primary">
-                      {Number(concert.priceEticket).toFixed(2)} €
+                      {concertWithNumbers.priceEticket.toFixed(2)} €
                     </p>
                     <p className="text-sm text-muted-foreground line-through">
-                      {Number(concert.pricePhysical).toFixed(2)} €
+                      {concertWithNumbers.pricePhysical.toFixed(2)} €
                     </p>
                   </div>
 
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-start gap-2">
                       <span className="text-green-500 mt-0.5">✓</span>
-                      <span>Accès au stream YouTube Live</span>
+                      <span>Accès au stream live professionnel</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-green-500 mt-0.5">✓</span>
@@ -233,18 +298,9 @@ export default async function ConcertDetailPage({
                   </ul>
 
                   {session ? (
-                    <form action="/api/checkout/eticket" method="POST">
-                      <input type="hidden" name="concertId" value={concert.id} />
-                      <Button
-                        type="submit"
-                        className="w-full"
-                        size="lg"
-                        disabled={isPast}
-                      >
-                        <Ticket className="mr-2 h-5 w-5" />
-                        Acheter un E-Ticket
-                      </Button>
-                    </form>
+                    <CheckoutButton concertId={concert.id} disabled={isPast}>
+                      Acheter un E-Ticket
+                    </CheckoutButton>
                   ) : (
                     <Link href="/auth/signin">
                       <Button className="w-full" size="lg">
@@ -267,7 +323,7 @@ export default async function ConcertDetailPage({
                 <CardContent className="space-y-4">
                   <div>
                     <p className="text-3xl font-bold">
-                      {Number(concert.pricePhysical).toFixed(2)} €
+                      {concertWithNumbers.pricePhysical.toFixed(2)} €
                     </p>
                   </div>
 
@@ -287,19 +343,14 @@ export default async function ConcertDetailPage({
                   </ul>
 
                   {session ? (
-                    <form action="/api/checkout/physical" method="POST">
-                      <input type="hidden" name="concertId" value={concert.id} />
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        className="w-full"
-                        size="lg"
-                        disabled={isPast}
-                      >
-                        <Ticket className="mr-2 h-5 w-5" />
-                        Acheter un Ticket Physique
-                      </Button>
-                    </form>
+                    <CheckoutButton 
+                      concertId={concert.id} 
+                      disabled={isPast}
+                      variant="outline"
+                      ticketType="physical"
+                    >
+                      Acheter un Ticket Physique
+                    </CheckoutButton>
                   ) : (
                     <Link href="/auth/signin">
                       <Button variant="outline" className="w-full" size="lg">
@@ -322,6 +373,11 @@ export default async function ConcertDetailPage({
               </Card>
             </div>
           </div>
+        </div>
+
+        {/* Fiche qualitative générée par ChatGPT */}
+        <div className="mt-8">
+          <ConcertContent concertId={concert.id} />
         </div>
       </div>
 

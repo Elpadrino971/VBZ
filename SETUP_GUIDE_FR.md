@@ -35,7 +35,7 @@ Ce guide vous aidera à configurer et déployer la plateforme VYbzzZ.
 
 1. Créer un compte sur [supabase.com](https://supabase.com)
 2. Créer un nouveau projet
-3. Aller dans **Settings** → **Database**
+3. Aller dans **Settings** → **Database**                   
 4. Copier la **Connection string** (Transaction mode)
 5. Remplacer `[YOUR-PASSWORD]` par votre mot de passe
 6. Ajouter dans `.env`:

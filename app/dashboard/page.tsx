@@ -14,6 +14,7 @@ import {
   Calendar,
   DollarSign,
   Clock,
+  Wallet,
 } from "lucide-react"
 import {
   ARTIST_LEVELS,
@@ -24,55 +25,65 @@ import {
 import Link from "next/link"
 
 async function getArtistData(userId: string) {
-  const artist = await prisma.artist.findUnique({
-    where: { userId },
-    include: {
-      concerts: {
-        orderBy: { date: "desc" },
-        take: 5,
+  try {
+    const artist = await prisma.artist.findUnique({
+      where: { userId },
+      include: {
+        concerts: {
+          orderBy: { date: "desc" },
+          take: 5,
+        },
+        payouts: {
+          orderBy: { createdAt: "desc" },
+          take: 5,
+        },
       },
-      payouts: {
-        orderBy: { createdAt: "desc" },
-        take: 5,
+    })
+
+    if (!artist) {
+      throw new Error("Artist profile not found")
+    }
+
+    // Calculate pending revenue (J+21)
+    const releaseDate = new Date()
+    releaseDate.setDate(releaseDate.getDate() + 21)
+
+    const pendingPayouts = await prisma.payout.aggregate({
+      where: {
+        artistId: artist.id,
+        status: "PENDING",
       },
-    },
-  })
-
-  if (!artist) {
-    throw new Error("Artist profile not found")
-  }
-
-  // Calculate pending revenue (J+21)
-  const releaseDate = new Date()
-  releaseDate.setDate(releaseDate.getDate() + 21)
-
-  const pendingPayouts = await prisma.payout.aggregate({
-    where: {
-      artistId: artist.id,
-      status: "PENDING",
-    },
-    _sum: {
-      amount: true,
-    },
-  })
-
-  const availablePayouts = await prisma.payout.aggregate({
-    where: {
-      artistId: artist.id,
-      status: "PENDING",
-      releaseDate: {
-        lte: new Date(),
+      _sum: {
+        amount: true,
       },
-    },
-    _sum: {
-      amount: true,
-    },
-  })
+    })
 
-  return {
-    artist,
-    pendingRevenue: pendingPayouts._sum.amount || 0,
-    availableRevenue: availablePayouts._sum.amount || 0,
+    const availablePayouts = await prisma.payout.aggregate({
+      where: {
+        artistId: artist.id,
+        status: "PENDING",
+        releaseDate: {
+          lte: new Date(),
+        },
+      },
+      _sum: {
+        amount: true,
+      },
+    })
+
+    return {
+      artist,
+      pendingRevenue: pendingPayouts._sum.amount || 0,
+      availableRevenue: availablePayouts._sum.amount || 0,
+    }
+  } catch (error) {
+    console.error("❌ Erreur lors de la récupération des données artiste:", error)
+    // Retourner des valeurs par défaut pour éviter que la page plante
+    return {
+      artist: null,
+      pendingRevenue: 0,
+      availableRevenue: 0,
+    }
   }
 }
 
@@ -86,6 +97,31 @@ export default async function DashboardPage() {
   const { artist, pendingRevenue, availableRevenue } = await getArtistData(
     session.user.id
   )
+
+  // Si l'artiste n'a pas pu être récupéré (erreur de connexion), afficher un message
+  if (!artist) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 pt-24 pb-8">
+          <Card className="border-amber-500">
+            <CardHeader>
+              <CardTitle>Connexion à la base de données</CardTitle>
+              <CardDescription>
+                Impossible de se connecter à la base de données pour le moment.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Veuillez réessayer dans quelques instants. Si le problème persiste,
+                vérifiez votre connexion Supabase.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   const levelInfo = ARTIST_LEVELS[artist.level]
   const trialActive = isTrialActive(artist.trialEndDate)
@@ -103,7 +139,7 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-24 pb-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2">Dashboard Artiste</h1>
@@ -334,6 +370,16 @@ export default async function DashboardPage() {
                 >
                   <Calendar className="mr-2 h-5 w-5" />
                   Gérer mes concerts
+                </Button>
+              </Link>
+              <Link href="/dashboard/payouts" className="block">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                >
+                  <Wallet className="mr-2 h-5 w-5" />
+                  Mes paiements
                 </Button>
               </Link>
             </CardContent>
