@@ -1,13 +1,14 @@
 -- VYbzzZ Platform Database Schema
 -- Generated from Prisma schema for manual migration
+-- CORRECTED: Fixed foreign key dependency order
 
 -- Drop existing tables if any (in reverse dependency order)
 DROP TABLE IF EXISTS "ConcertContent" CASCADE;
 DROP TABLE IF EXISTS "UserCredit" CASCADE;
+DROP TABLE IF EXISTS "Payout" CASCADE;
 DROP TABLE IF EXISTS "Tip" CASCADE;
 DROP TABLE IF EXISTS "Comment" CASCADE;
 DROP TABLE IF EXISTS "ConcertLike" CASCADE;
-DROP TABLE IF EXISTS "Payout" CASCADE;
 DROP TABLE IF EXISTS "Ticket" CASCADE;
 DROP TABLE IF EXISTS "Concert" CASCADE;
 DROP TABLE IF EXISTS "Artist" CASCADE;
@@ -109,7 +110,23 @@ CREATE TABLE "Ticket" (
     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
 );
 
--- Payout table
+-- Tip table (MOVED BEFORE Payout to fix dependency)
+CREATE TABLE "Tip" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "concertId" TEXT NOT NULL,
+    "artistId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amount" DECIMAL(10,2) NOT NULL,
+    "stripePaymentIntentId" TEXT,
+    "status" "TipStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY ("concertId") REFERENCES "Concert"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
+);
+
+-- Payout table (NOW AFTER Tip)
 CREATE TABLE "Payout" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "artistId" TEXT NOT NULL,
@@ -155,22 +172,6 @@ CREATE TABLE "Comment" (
     FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
 );
 
--- Tip table
-CREATE TABLE "Tip" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "concertId" TEXT NOT NULL,
-    "artistId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "amount" DECIMAL(10,2) NOT NULL,
-    "stripePaymentIntentId" TEXT,
-    "status" "TipStatus" NOT NULL DEFAULT 'PENDING',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY ("concertId") REFERENCES "Concert"("id") ON DELETE CASCADE,
-    FOREIGN KEY ("artistId") REFERENCES "Artist"("id") ON DELETE CASCADE,
-    FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE
-);
-
 -- UserCredit table
 CREATE TABLE "UserCredit" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -194,9 +195,6 @@ CREATE TABLE "ConcertContent" (
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY ("concertId") REFERENCES "Concert"("id") ON DELETE CASCADE
 );
-
--- Add Payout foreign key to Tip after Tip table is created
--- (This was referenced before Tip was created, so we do it after)
 
 -- Create Indexes
 CREATE INDEX "User_email_idx" ON "User"("email");
