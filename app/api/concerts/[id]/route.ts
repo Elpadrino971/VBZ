@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
 
     if (!session || session.user.role !== "ARTIST") {
@@ -14,7 +15,7 @@ export async function GET(
     }
 
     const concert = await prisma.concert.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         artist: true,
       },

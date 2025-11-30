@@ -18,6 +18,7 @@ export function ConcertContent({ concertId }: ConcertContentProps) {
 
   useEffect(() => {
     fetchContent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [concertId])
 
   const fetchContent = async () => {

@@ -2,10 +2,11 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { generateConcertContent } from "@/lib/chatgpt"
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const concert = await prisma.concert.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { artist: true },
     })
 
@@ -46,10 +47,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const concert = await prisma.concert.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: { artist: true },
     })
 

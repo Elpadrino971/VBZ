@@ -11,16 +11,15 @@ import { sendConcertEndedEmail } from "@/lib/email"
  */
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: concertId } = await params
     const session = await auth()
 
     if (!session) {
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
-
-    const concertId = params.id
 
     // Récupérer le concert avec l'artiste et les tickets
     const concert = await prisma.concert.findUnique({

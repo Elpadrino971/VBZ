@@ -9,15 +9,14 @@ import { getLiveStream } from "@/lib/mux"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: concertId } = await params
     const session = await auth()
     if (!session || session.user.role !== "ARTIST") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const concertId = params.id
 
     // Vérifier que le concert appartient à l'artiste
     const concert = await prisma.concert.findUnique({

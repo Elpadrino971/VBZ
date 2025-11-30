@@ -10,11 +10,12 @@ const commentSchema = z.object({
 // Get comments
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const comments = await prisma.comment.findMany({
-      where: { concertId: params.id },
+      where: { concertId: id },
       include: {
         user: {
           select: {
@@ -52,9 +53,10 @@ export async function GET(
 // Create comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -66,7 +68,7 @@ export async function POST(
     // Anti-spam : Vérifier le dernier message de l'utilisateur pour ce concert
     const lastComment = await prisma.comment.findFirst({
       where: {
-        concertId: params.id,
+        concertId: id,
         userId: session.user.id,
       },
       orderBy: {
@@ -87,7 +89,7 @@ export async function POST(
 
     const comment = await prisma.comment.create({
       data: {
-        concertId: params.id,
+        concertId: id,
         userId: session.user.id,
         content,
       },

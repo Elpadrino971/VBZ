@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma"
 // Toggle like
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -16,7 +17,7 @@ export async function POST(
     const existingLike = await prisma.concertLike.findUnique({
       where: {
         concertId_userId: {
-          concertId: params.id,
+          concertId: id,
           userId: session.user.id,
         },
       },
@@ -28,13 +29,13 @@ export async function POST(
 
     await prisma.concertLike.create({
       data: {
-        concertId: params.id,
+        concertId: id,
         userId: session.user.id,
       },
     })
 
     const likesCount = await prisma.concertLike.count({
-      where: { concertId: params.id },
+      where: { concertId: id },
     })
 
     return NextResponse.json({ 
@@ -53,9 +54,10 @@ export async function POST(
 // Unlike
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -63,13 +65,13 @@ export async function DELETE(
 
     await prisma.concertLike.deleteMany({
       where: {
-        concertId: params.id,
+        concertId: id,
         userId: session.user.id,
       },
     })
 
     const likesCount = await prisma.concertLike.count({
-      where: { concertId: params.id },
+      where: { concertId: id },
     })
 
     return NextResponse.json({ 
@@ -88,13 +90,14 @@ export async function DELETE(
 // Get likes count and user status
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const session = await auth()
     
     const likesCount = await prisma.concertLike.count({
-      where: { concertId: params.id },
+      where: { concertId: id },
     })
 
     let userLiked = false
@@ -102,7 +105,7 @@ export async function GET(
       const like = await prisma.concertLike.findUnique({
         where: {
           concertId_userId: {
-            concertId: params.id,
+            concertId: id,
             userId: session.user.id,
           },
         },

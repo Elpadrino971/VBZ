@@ -70,7 +70,6 @@ export async function POST(req: Request) {
     }
 
     // Créer le tip en base de données (statut PENDING)
-    // @ts-expect-error - Le modèle Tip existe mais TypeScript peut avoir un cache obsolète
     const tip = await prisma.tip.create({
       data: {
         concertId,

@@ -6,24 +6,41 @@ import { Tv, Play, Clock, User } from "lucide-react"
 import Link from "next/link"
 
 async function getAvailableStreamings() {
-  // Récupérer tous les concerts avec un muxPlaybackId (assets/streamings disponibles)
-  const streamings = await prisma.concert.findMany({
-    where: {
-      muxPlaybackId: {
-        not: null,
+  try {
+    // Récupérer tous les concerts avec un muxPlaybackId (assets/streamings disponibles)
+    const streamings = await prisma.concert.findMany({
+      where: {
+        muxPlaybackId: {
+          not: null,
+        },
+        status: {
+          in: ["PUBLISHED", "LIVE", "ENDED"],
+        },
       },
-      status: {
-        in: ["PUBLISHED", "LIVE", "ENDED"],
+      include: {
+        artist: {
+          select: {
+            id: true,
+            artistName: true,
+            photoUrl: true,
+          },
+        },
       },
-    },
-    include: {
-      artist: true,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  })
-  return streamings
+      orderBy: {
+        createdAt: "desc",
+      },
+    })
+    
+    // Convertir Decimal en Number pour les prix
+    return streamings.map((s) => ({
+      ...s,
+      priceEticket: Number(s.priceEticket),
+      pricePhysical: Number(s.pricePhysical),
+    }))
+  } catch (error) {
+    console.error("Error fetching streamings:", error)
+    return []
+  }
 }
 
 export default async function StreamingsPage() {

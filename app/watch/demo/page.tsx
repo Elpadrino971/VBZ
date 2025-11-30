@@ -133,7 +133,7 @@ export default function WatchDemoPage() {
                   background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(147, 51, 234, 0.3) 100%)',
                 }}
               />
-              {DEMO_PLAYBACK_ID === "demo-playback-id" ? (
+              {false ? (
                 <Card className="bg-[#111] border-white/10 backdrop-blur-sm" style={{ borderRadius: '14px' }}>
                   <CardContent className="flex flex-col items-center justify-center py-24">
                     <Music className="h-16 w-16 text-amber-500 dark:text-red-500 mb-4" />

@@ -4,10 +4,10 @@ if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
   throw new Error("MUX_TOKEN_ID and MUX_TOKEN_SECRET must be set")
 }
 
-export const mux = new Mux(
-  process.env.MUX_TOKEN_ID,
-  process.env.MUX_TOKEN_SECRET
-)
+export const mux = new Mux({
+  tokenId: process.env.MUX_TOKEN_ID!,
+  tokenSecret: process.env.MUX_TOKEN_SECRET!,
+})
 
 export interface CreateLiveStreamResponse {
   id: string

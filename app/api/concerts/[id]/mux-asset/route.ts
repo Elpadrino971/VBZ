@@ -6,14 +6,13 @@ import { getAssetByPlaybackId } from "@/lib/mux"
 /**
  * Associe un asset Mux (vidéo uploadée) à un concert
  */
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id: concertId } = await params
     const session = await auth()
     if (!session || session.user.role !== "ARTIST") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
-
-    const concertId = params.id
     const { playbackId } = await req.json()
 
     if (!playbackId) {

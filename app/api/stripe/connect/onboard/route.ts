@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
+import Stripe from "stripe"
 
 export async function POST(req: Request) {
   try {
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     const account = await stripe.accounts.create({
       type: "express",
       country: "FR",
-      email: session.user.email,
+      email: session.user.email || undefined,
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
         artistId: artist.id,
         userId: session.user.id,
       },
-    })
+    } as Stripe.AccountCreateParams)
 
     // Sauvegarder l'ID du compte Stripe
     await prisma.artist.update({
